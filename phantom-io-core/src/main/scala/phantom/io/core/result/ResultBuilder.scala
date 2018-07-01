@@ -4,10 +4,10 @@ import scalaz.\/
 
 trait ResultBuilder {
 
-  def build[ERROR, A](value: \/[ERROR, A]): Result[ERROR, A]
+  def build[E, A](value: \/[E, A]): Result[E, A]
 
-  def build[ERROR, A](value: A): Result[ERROR, A]
+  def build[E, A](value: A): Result[E, A]
 
-  def sequence[ERROR, A](seq: Seq[Result[ERROR, A]]): Result[ERROR, Seq[A]]
+  def sequence[E, A](seq: Seq[Result[E, A]]): Result[E, Seq[A]]
 
 }

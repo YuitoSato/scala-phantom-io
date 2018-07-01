@@ -7,13 +7,17 @@ import scalaz.{ EitherT, \/ }
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContext, Future }
 
-trait Result[ERROR, A] { self =>
+/**
+  * @tparam E Error
+  * @tparam A Value from a result
+  */
+trait Result[E, A] { self =>
 
-  def map[B](f: A => B): Result[ERROR, B]
+  def map[B](f: A => B): Result[E, B]
 
-  def flatMap[B](f: A => Result[ERROR, B]): Result[ERROR, B]
+  def flatMap[B](f: A => Result[E, B]): Result[E, B]
 
-  def leftMap(f: ERROR => ERROR): Result[ERROR, A]
+  def leftMap(f: E => E): Result[E, A]
 
   def foreach(f: A => Unit): Unit = map(f)
 
