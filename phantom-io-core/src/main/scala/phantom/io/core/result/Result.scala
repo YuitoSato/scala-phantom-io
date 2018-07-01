@@ -2,34 +2,54 @@ package phantom.io.core.result
 
 import phantom.io.core.error.Error
 import scalaz.std.{ EitherInstances, FutureInstances }
-import scalaz.{ EitherT, \/ }
+import scalaz.{ -\/, EitherT, \/ }
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContext, Future }
 
-/**
-  * @tparam E Error
-  * @tparam A Value from a result
-  */
-trait Result[E, A] { self =>
+trait Result[A] { self =>
 
-  def map[B](f: A => B): Result[E, B]
+  def map[B](f: A => B): Result[B]
 
-  def flatMap[B](f: A => Result[E, B]): Result[E, B]
+  def flatMap[B](f: A => Result[B]): Result[B]
 
-  def leftMap(f: E => E): Result[E, A]
+  def leftMap(f: Error => Error): Result[A]
 
   def foreach(f: A => Unit): Unit = map(f)
+
+  def zipWith[U, R](that: Result[U])(f: (A, U) => R): Result[R] = flatMap(a => that.map(u => f(a, u)))
+
+  def _if(p: A => Boolean): ErrorHandler = new ErrorHandler(p)
+
+  class ErrorHandler(p: A => Boolean) {
+    def _else(e: => Error)(implicit builder: ResultBuilder): Result[A] = {
+      flatMap(a =>
+        if (p(a))
+          self
+        else
+          builder.build(-\/(e))
+      )
+    }
+
+    def _else(f: A => Error)(implicit builder: ResultBuilder): Result[A] = {
+      flatMap(a =>
+        if (p(a))
+          self
+        else
+          builder.build(-\/(f(a)))
+      )
+    }
+  }
 
 }
 
 case class SyncResult[A](
   value: Error \/ A
-) extends Result[Error, A] with EitherInstances {
+) extends Result[A] with EitherInstances { self =>
 
-  override def map[B](f: A => B): Result[Error, B] = SyncResult(value.map(f))
+  override def map[B](f: A => B): Result[B] = SyncResult(value.map(f))
 
-  override def flatMap[B](f: A => Result[Error, B]): Result[Error, B] = {
+  override def flatMap[B](f: A => Result[B]): Result[B] = {
     SyncResult(
       value.flatMap(f(_) match {
         case sync: SyncResult[B] => sync.value
@@ -38,19 +58,20 @@ case class SyncResult[A](
     )
   }
 
-  override def leftMap(f: Error => Error): Result[Error, A] = SyncResult(value.leftMap(f))
+  override def leftMap(f: Error => Error): Result[A] = SyncResult(value.leftMap(f))
 
 }
+
 
 case class AsyncResult[A](
   value: EitherT[Future, Error, A]
 )(
   implicit ec: ExecutionContext
-) extends Result[Error, A] with FutureInstances with EitherInstances {
+) extends Result[A] with FutureInstances with EitherInstances {
 
-  override def map[B](f: A => B): Result[Error, B] = AsyncResult(value.map(f))
+  override def map[B](f: A => B): Result[B] = AsyncResult(value.map(f))
 
-  override def flatMap[B](f: A => Result[Error, B]): Result[Error, B] = {
+  override def flatMap[B](f: A => Result[B]): Result[B] = {
     AsyncResult(
       value.flatMap(f(_) match {
         case async: AsyncResult[B] => async.value
@@ -59,6 +80,6 @@ case class AsyncResult[A](
     )
   }
 
-  override def leftMap(f: Error => Error): Result[Error, A] = AsyncResult(value.leftMap(f))
+  override def leftMap(f: Error => Error): Result[A] = AsyncResult(value.leftMap(f))
 
 }

@@ -1,13 +1,26 @@
 package phantom.io.core.result
 
-import scalaz.\/
+import phantom.io.core.error.Error
+import scalaz.{ \/, \/- }
 
 trait ResultBuilder {
 
-  def build[E, A](value: \/[E, A]): Result[E, A]
+  def build[A](value: \/[Error, A]): Result[A]
 
-  def build[E, A](value: A): Result[E, A]
+  def build[A](value: A): Result[A]
 
-  def sequence[E, A](seq: Seq[Result[E, A]]): Result[E, Seq[A]]
+  def sequence[A](seq: Seq[Result[A]]): Result[Seq[A]] = {
+    seq.toList.foldLeft(build(Nil: List[A])) {
+      (resultSeq, resultA) => resultSeq.zipWith(resultA)((l, a) => a :: l)
+    }.map(_.reverse.toSeq)
+  }
+
+}
+
+class SyncResultBuilder extends ResultBuilder{
+
+  override def build[A](value: Error \/ A): Result[A] = SyncResult(value)
+
+  override def build[A](value: A): Result[A] = SyncResult(\/-(value))
 
 }

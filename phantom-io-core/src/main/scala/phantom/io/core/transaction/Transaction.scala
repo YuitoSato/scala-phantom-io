@@ -1,20 +1,43 @@
 package phantom.io.core.transaction
 
-/**
-  * @tparam R Result after a transaction is committed
-  * @tparam E Error while transaction processing
-  * @tparam A Value in a transaction
-  */
-trait Transaction[R, E, A] { self =>
+import phantom.io.core.error.Error
+import phantom.io.core.result.Result
+import scalaz.-\/
 
-  def map[B](f: A => B): Transaction[R, E, B]
+trait Transaction[A] { self =>
 
-  def flatMap[B](f: A => Transaction[R, E, B]): Transaction[R, E, B]
+  def map[B](f: A => B): Transaction[B]
 
-  def leftMap(f: E => E): Transaction[R, E, A]
+  def flatMap[B](f: A => Transaction[B]): Transaction[B]
+
+  def leftMap(f: Error => Error): Transaction[A]
 
   def foreach(f: A => Unit): Unit = map(f)
 
-  def run: R
+  def zipWith[U, R](that: Transaction[U])(f: (A, U) => R): Transaction[R] = flatMap(a => that.map(u => f(a, u)))
+
+  def run: Result[A]
+
+  def _if(p: A => Boolean): ErrorHandler = new ErrorHandler(p)
+
+  class ErrorHandler(p: A => Boolean) {
+    def _else(e: => Error)(implicit builder: TransactionBuilder): Transaction[A] = {
+      flatMap(a =>
+        if (p(a))
+          self
+        else
+          builder.build(-\/(e))
+      )
+    }
+
+    def _else(f: A => Error)(implicit builder: TransactionBuilder): Transaction[A] = {
+      flatMap(a =>
+        if (p(a))
+          self
+        else
+          builder.build(-\/(f(a)))
+      )
+    }
+  }
 
 }

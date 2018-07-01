@@ -1,13 +1,18 @@
 package phantom.io.core.transaction
 
+import phantom.io.core.error.Error
 import scalaz.\/
 
 trait TransactionBuilder {
 
-  def build[RESULT, ERROR, A](value: \/[ERROR, A]): Transaction[RESULT, ERROR, A]
+  def build[A](value: \/[Error, A]): Transaction[A]
 
-  def build[RESULT, ERROR, A](value: A): Transaction[RESULT, ERROR, A]
+  def build[A](value: A): Transaction[A]
 
-  def sequence[RESULT, ERROR, A](seq: Seq[Transaction[RESULT, ERROR, A]]): Transaction[RESULT, ERROR, Seq[A]]
+  def sequence[A](seq: Seq[Transaction[A]]): Transaction[Seq[A]] = {
+    seq.toList.foldLeft(build(Nil: List[A])) {
+      (resultSeq, resultA) => resultSeq.zipWith(resultA)((l, a) => a :: l)
+    }.map(_.reverse.toSeq)
+  }
 
 }
