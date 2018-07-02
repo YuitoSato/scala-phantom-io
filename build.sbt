@@ -11,14 +11,17 @@ lazy val commonSettings = Seq(
 )
 
 lazy val core = Core.project
+lazy val slick = Slick.project
 
 lazy val root = Project(
   "scala-phantom-io",
   file(".")
 ).dependsOn(
-  core
+  core,
+  slick
 ).aggregate(
-  core
+  core,
+  slick
 ).settings(
   commonSettings
 )
