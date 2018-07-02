@@ -10,17 +10,14 @@ lazy val commonSettings = Seq(
   )
 )
 
-lazy val phantomTransaction = PhantomTransaction.project
 lazy val core = Core.project
 
 lazy val root = Project(
   "scala-phantom-io",
   file(".")
 ).dependsOn(
-  phantomTransaction,
   core
 ).aggregate(
-  phantomTransaction,
   core
 ).settings(
   commonSettings
